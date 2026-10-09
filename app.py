@@ -1,85 +1,32 @@
-
 from fastapi import FastAPI
-from pydantic import BaseModel
-import joblib
-import pandas as pd
-
-# ------------------------------------------------------------
-# LOAD TRAINED MODEL
-# ------------------------------------------------------------
-
-model = joblib.load("linear_model.pkl")
-scaler = joblib.load("scaler.pkl")
-feature_columns = joblib.load("feature_columns.pkl")
-
-
-# ------------------------------------------------------------
-# CREATE FASTAPI APPLICATION
-# ------------------------------------------------------------
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+import os
 
 app = FastAPI(
-    title="Car Price Prediction API",
-    description="Predict car price using a Linear Regression model",
+    title="TensorFlow.js Live Camera Object Detection",
+    description="Live browser-camera object detection using TensorFlow.js COCO-SSD",
     version="1.0"
 )
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# ------------------------------------------------------------
-# INPUT DATA FORMAT
-# ------------------------------------------------------------
-
-class CarData(BaseModel):
-
-    enginesize: float
-    carwidth: float
-    highwaympg: float
-    boreratio: float
-    carheight: float
-    peakrpm: float
-
-
-# ------------------------------------------------------------
-# HOME PAGE
-# ------------------------------------------------------------
+app.mount("/css", StaticFiles(directory=os.path.join(BASE_DIR, "css")), name="css")
+app.mount("/js", StaticFiles(directory=os.path.join(BASE_DIR, "js")), name="js")
 
 @app.get("/")
 def home():
+    return FileResponse(os.path.join(BASE_DIR, "index.html"))
 
+@app.get("/health")
+def health():
     return {
-        "message": "Car Price Prediction API is running!"
+        "status": "healthy",
+        "framework": "TensorFlow.js",
+        "model": "COCO-SSD",
+        "inference": "browser"
     }
 
-
-# ------------------------------------------------------------
-# PREDICTION API
-# ------------------------------------------------------------
-
-@app.post("/predict")
-def predict_price(car: CarData):
-
-    # Convert input into dictionary
-    input_data = {
-        "enginesize": car.enginesize,
-        "carwidth": car.carwidth,
-        "highwaympg": car.highwaympg,
-        "boreratio": car.boreratio,
-        "carheight": car.carheight,
-        "peakrpm": car.peakrpm
-    }
-
-    # Create DataFrame
-    input_df = pd.DataFrame(
-        [input_data],
-        columns=feature_columns
-    )
-
-    # Scale input using the SAME scaler used during training
-    input_scaled = scaler.transform(input_df)
-
-    # Make prediction
-    prediction = model.predict(input_scaled)
-
-    # Return prediction
-    return {
-        "predicted_price": round(float(prediction[0]), 2)
-    }
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=False)
